@@ -1,0 +1,26 @@
+{
+  "name": "iot-weather-simulator",
+  "version": "1.0.0",
+  "description": "IoT Weather Simulator - Gọi OpenWeather API và publish lên MQTT",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "keywords": [
+    "IoT",
+    "MQTT",
+    "OpenWeather",
+    "Simulator"
+  ],
+  "author": "IoT Teacher",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.5",
+    "mqtt": "^5.3.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
