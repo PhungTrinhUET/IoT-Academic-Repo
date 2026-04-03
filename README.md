@@ -252,7 +252,75 @@ Terminal 2 - Publish:
 
 ## ⚙️ Configuration
 
-### Tạo `config.py`
+### 1️⃣ Setup Database trong pgAdmin 4
+
+#### Bước 1: Mở pgAdmin 4
+
+Truy cập: [http://localhost:5050](http://localhost:5050)  
+Đăng nhập với mật khẩu PostgreSQL
+
+#### Bước 2: Tạo Database `iot_demo`
+
+1. Chuột phải vào **Databases** (trên cây trái)
+2. Chọn **Create** → **Database...**
+3. Nhập:
+   - **Database name:** `iot_demo`
+   - **Owner:** `postgres`
+4. Click **Save**
+
+![pgAdmin Create Database](https://imgur.com/example.png)
+
+#### Bước 3: Tạo Table `weather_data`
+
+1. Expand database `iot_demo` → chuột phải **Schemas** → **public**
+2. Chuột phải **Tables** → **Create** → **Table...**
+   
+   **Hoặc:** Truy cập **Tools** → **Query Tool** → Copy SQL dưới đây:
+
+```sql
+-- Tạo table weather_data
+CREATE TABLE weather_data (
+    id SERIAL PRIMARY KEY,
+    device_id VARCHAR(100) NOT NULL,
+    city VARCHAR(100),
+    temperature REAL,
+    humidity REAL,
+    pressure REAL,
+    wind_speed REAL,
+    weather VARCHAR(200),
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tạo index để tối ưu query
+CREATE INDEX idx_weather_city ON weather_data(city);
+CREATE INDEX idx_weather_recorded_at ON weather_data(recorded_at DESC);
+```
+
+**Thực hiện:**
+- Copy SQL ở trên
+- Mở **Tools** → **Query Tool** trong database `iot_demo`
+- Paste & click **Execute** (hoặc F5)
+- Nếu không báo lỗi → ✅ **Table tạo thành công**
+
+#### Bước 4: Kiểm tra Table
+
+Chạy query:
+```sql
+SELECT * FROM weather_data;
+```
+
+Nếu kết quả trống (không lỗi) → ✅ **OK**
+
+#### Bước 5: Xem cấu trúc Table
+
+Trên cây trái pgAdmin:
+1. Expand `iot_demo` → **Schemas** → **public** → **Tables**
+2. Chuột phải **weather_data** → **Properties**
+3. Xem các columns, types, constraints
+
+---
+
+### 2️⃣ Tạo `config.py`
 
 Tạo file **`config.py`** tại root thư mục project với nội dung:
 
@@ -291,9 +359,20 @@ THINGSBOARD_TOPIC = "v1/devices/me/telemetry"
 | `PG_PASSWORD` | Cài đặt PostgreSQL | Password của user `postgres` |
 | `THINGSBOARD_ACCESS_TOKEN` | [demo.thingsboard.io](https://demo.thingsboard.io) | Token của device trên ThingsBoard |
 
+#### ⚠️ Lưu ý Quan Trọng
+
+- **Không commit file `config.py`** chứa credentials lên GitHub
+- Tạo `.gitignore` để bỏ qua:
+  ```
+  config.py
+  __pycache__/
+  *.pyc
+  .env
+  ```
+
 ---
 
-### Install Python Dependencies
+### 3️⃣ Install Python Dependencies
 
 Mở terminal tại thư mục project:**
 
