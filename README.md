@@ -1,336 +1,307 @@
-# IoT Demo hoàn chỉnh: OpenWeather → Mosquitto → PostgreSQL → ThingsBoard
+# 🌐 IoT Demo: OpenWeather → Mosquitto → PostgreSQL → ThingsBoard
 
-## 1. Giới thiệu
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-active-success.svg)
+
+> A complete IoT end-to-end demo project for students learning IoT architecture and data pipeline management.
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Learning Objectives](#learning-objectives)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Technology Stack](#technology-stack)
+- [Prerequisites](#prerequisites)
+- [Installation & Setup](#installation--setup)
+- [Configuration](#configuration)
+- [Quick Start](#quick-start)
+- [Running the Project](#running-the-project)
+- [Troubleshooting](#troubleshooting)
+- [References](#references)
+
+---
+
+## 🎯 Overview
 
 Đây là project demo IoT hoàn chỉnh dành cho sinh viên mới bắt đầu học IoT.  
 Project này mô phỏng một hệ thống IoT end-to-end với đầy đủ các thành phần quan trọng:
 
-- một **nguồn dữ liệu đầu vào**
-- một **MQTT Broker**
-- một **subscriber xử lý dữ liệu**
-- một **cơ sở dữ liệu lưu trữ**
-- một **nền tảng IoT để giám sát trực quan**
+- 📡 **Nguồn dữ liệu** (OpenWeather API - cảm biến ảo)
+- 🔄 **MQTT Broker** (Mosquitto)
+- 💾 **Database** (PostgreSQL)
+- 📊 **Visualization** (ThingsBoard)
+- ⚙️ **Data Processing** (Publisher/Subscriber)
 
-Trong project này, thay vì dùng cảm biến thật như ESP32 hoặc DHT11, dữ liệu đầu vào sẽ được lấy từ **OpenWeather API**. Có thể xem đây là một **cảm biến ảo** để giúp sinh viên tập trung vào việc hiểu kiến trúc IoT mà không bị phụ thuộc vào phần cứng ngay từ đầu.
-
----
-
-## 2. Mục tiêu học tập
-
-Sau khi hoàn thành bài thực hành này, sinh viên có thể hiểu được:
-
-- cách lấy dữ liệu từ API bên ngoài
-- cách tổ chức một pipeline IoT cơ bản
-- cách dùng giao thức **MQTT**
-- vai trò của **Mosquitto** trong hệ thống
-- cách viết chương trình **publisher**
-- cách viết chương trình **subscriber**
-- cách lưu dữ liệu vào **PostgreSQL**
-- cách dùng **ThingsBoard** để xem telemetry
-- cách kiểm tra và debug từng thành phần trong hệ thống
+Thay vì dùng cảm biến thật (ESP32, DHT11), dữ liệu sẽ được lấy từ **OpenWeather API**, giúp sinh viên focus vào kiến trúc IoT mà không phụ thuộc vào phần cứng.
 
 ---
 
-## 3. Luồng hoạt động của hệ thống
+## 🎓 Learning Objectives
 
-Hệ thống hoạt động theo luồng sau:
+Sau khi hoàn thành project này, bạn sẽ hiểu được:
 
-**OpenWeather API**  
-→ `publisher.py` lấy dữ liệu thời tiết  
-→ publish dữ liệu lên **Mosquitto** thông qua MQTT  
-→ `subscriber.py` subscribe dữ liệu từ topic MQTT  
-→ lưu dữ liệu vào **PostgreSQL**  
-→ đồng thời forward dữ liệu lên **ThingsBoard**  
-→ hiển thị telemetry trong ThingsBoard
+✅ Cách lấy dữ liệu từ API bên ngoài  
+✅ Cách tổ chức một data pipeline IoT  
+✅ Giao thức **MQTT** và cơ chế publish/subscribe  
+✅ Vai trò của **MQTT Broker** (Mosquitto)  
+✅ Viết **Publisher** - thu thập & gửi dữ liệu  
+✅ Viết **Subscriber** - xử lý dữ liệu nhận được  
+✅ Lưu dữ liệu vào **PostgreSQL**  
+✅ Tích hợp **ThingsBoard** để visualize dữ liệu  
+✅ Debug và troubleshoot từng component  
 
-Có thể tóm tắt bằng sơ đồ chữ như sau:
+---
 
-```text
-OpenWeather API
-      ↓
-publisher.py
-      ↓ MQTT publish
-Mosquitto Broker
-      ↓ MQTT subscribe
-subscriber.py
-   ↙          ↘
-PostgreSQL   ThingsBoard
+## 🏗️ System Architecture
+
+**Quy trình hoạt động chi tiết:**
+
+```
+┌─────────────────┐
+│ OpenWeather API │ ◄── Cảm biến ảo (Virtual Sensor)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────┐
+│  publisher.py       │ ◄── Fetch dữ liệu & publish
+│ (Data Collector)    │
+└────────┬────────────┘
+         │ HTTP GET
+         │ MQTT Publish
+         ▼
+┌─────────────────────┐
+│ Mosquitto Broker    │ ◄── Message Queue
+│ (MQTT Broker)       │     Port: 1883
+└────────┬────────────┘
+         │
+         ▼ MQTT Subscribe
+┌─────────────────────┐
+│  subscriber.py      │ ◄── Data Processing
+│(Data Consumer)      │
+└────┬────────┬───────┘
+     │        │
+     ▼        ▼
+┌─────────┐  ┌──────────────────┐
+│PostgreSQL│  │  ThingsBoard     │
+│          │  │ (Visualization)  │
+└──────────┘  └──────────────────┘
 ```
 
 ---
 
-## 4. Cấu trúc thư mục project
+## 📁 Project Structure
 
-Thư mục project ví dụ:
+Cấu trúc thư mục project:
 
-```text
-iot_demo_0403/
-│
-├─ config.py
-├─ publisher.py
-├─ subscriber.py
-├─ test_openweather.py
-├─ test_thingsboard.py
-└─ README.md
+
+
+```
+.
+├── config.py                    # ⚙️  Cấu hình toàn bộ project
+├── publisher.py                 # 📤 Thu thập dữ liệu & publish lên Mosquitto
+├── subscriber.py                # 📥 Subscribe từ Mosquitto, lưu DB & ThingsBoard
+├── test_openweather.py          # 🧪 Test OpenWeather API
+├── test_thingsboard.py          # 🧪 Test kết nối ThingsBoard
+└── README.md                    # 📖 Tài liệu này
 ```
 
-Ý nghĩa các file:
+### File Description
 
-* `config.py`: chứa toàn bộ thông tin cấu hình
-* `publisher.py`: lấy dữ liệu từ OpenWeather và publish lên Mosquitto
-* `subscriber.py`: nhận dữ liệu từ Mosquitto, lưu vào PostgreSQL và gửi lên ThingsBoard
-* `test_openweather.py`: test API OpenWeather
-* `test_thingsboard.py`: test gửi dữ liệu trực tiếp lên ThingsBoard
-* `README.md`: tài liệu hướng dẫn thực hiện project
+| File | Mục đích |
+|------|---------|
+| `config.py` | Lưu toàn bộ thông tin cấu hình (API keys, host, port, ...) |
+| `publisher.py` | Gọi OpenWeather API & đẩy dữ liệu lên MQTT Broker |
+| `subscriber.py` | Lấy dữ liệu từ MQTT, lưu PostgreSQL, gửi ThingsBoard |
+| `test_openweather.py` | Kiểm tra kết nối OpenWeather API |
+| `test_thingsboard.py` | Kiểm tra kết nối ThingsBoard MQTT |
 
 ---
 
-## 5. Công nghệ sử dụng
+## 🛠️ Technology Stack
 
-Project sử dụng các công nghệ sau:
+Công nghệ & công cụ sử dụng:
 
-* **Python 3**
-* **OpenWeather API**
-* **Mosquitto MQTT Broker**
-* **PostgreSQL**
-* **pgAdmin 4**
-* **ThingsBoard**
-* Thư viện Python:
-
-  * `requests`
-  * `paho-mqtt`
-  * `psycopg2-binary`
+| Component | Version | Mục đích |
+|-----------|---------|---------|
+| **Python** | 3.8+ | Ngôn ngữ lập trình |
+| **Mosquitto** | Latest | MQTT Broker |
+| **PostgreSQL** | 12+ | Database |
+| **pgAdmin 4** | Latest | Web UI quản lý PostgreSQL |
+| **ThingsBoard** | Cloud/Local | IoT Platform visualize |
+| **requests** | Latest | Call HTTP API |
+| **paho-mqtt** | Latest | MQTT Client Python |
+| **psycopg2-binary** | Latest | PostgreSQL adapter |
 
 ---
 
-# 6. Chuẩn bị môi trường
+## ✅ Prerequisites
 
-## 6.1. Cài Python
+Yêu cầu trước khi bắt đầu:
 
-### Bước 1: Tải Python
+- 💻 **Windows 10+** (hoặc Linux/macOS)
+- 🐍 **Python 3.8 or higher**
+- 📡 **Mosquitto MQTT Broker**
+- 🗄️ **PostgreSQL 12+**
+- 🌐 **OpenWeather API Key** (miễn phí tại [openweathermap.org](https://openweathermap.org/api))
+- ☁️ **ThingsBoard Account** (dùng [demo.thingsboard.io](https://demo.thingsboard.io) hoặc local instance)
+- 📝 **Text Editor hoặc IDE** (VS Code, PyCharm, ...)
 
-Tải Python 3.11 hoặc phiên bản gần tương đương.
+---
 
-### Bước 2: Cài Python
+## 📦 Installation & Setup
 
-Trong quá trình cài đặt, cần tick vào mục:
+### 1️⃣ Install Python 3
 
-```text
-Add Python to PATH
-```
+**Download:** https://www.python.org/downloads/
 
-### Bước 3: Kiểm tra
+**Trong lúc cài:**
+- ✅ Tick vào `Add Python to PATH`
+- Chọn path cài đặt (mặc định được)
+- Chọn `Disable path length limit` (optional nhưng tốt)
 
-Mở PowerShell hoặc Command Prompt và chạy:
+**Kiểm tra cài đặt:**
 
 ```bash
 python --version
-```
-
-hoặc:
-
-```bash
+# Hoặc
 py --version
 ```
 
-Nếu thấy hiện phiên bản Python thì đã cài thành công.
+Nếu hiện phiên bản → ✅ **Thành công**
 
 ---
 
-## 6.2. Cài Mosquitto
+### 2️⃣ Install Mosquitto MQTT Broker
 
-### Bước 1: Tải Mosquitto
+**Download:** https://mosquitto.org/download/
 
-Tải Mosquitto cho Windows.
+**Cài đặt:**
+- Chạy file `.exe` installer
+- Giữ nguyên các tùy chọn mặc định
+- Port mặc định: `1883`
 
-### Bước 2: Cài đặt
+**Chạy Mosquitto:**
 
-Chạy file cài đặt `.exe` và giữ nguyên các tùy chọn mặc định.
-
-### Bước 3: Xác định thư mục cài
-
-Ví dụ, trên máy có thể cài ở:
-
-```text
-D:\Mosquitto
-```
-
-hoặc thư mục mặc định khác.
-
-### Bước 4: Chạy Mosquitto broker
-
-Mở PowerShell và chạy:
-
-```powershell
-cd "D:\Mosquitto"
+```bash
+# Windows: Mở PowerShell
+cd "C:\Program Files\mosquitto"  # Hoặc path cài đặt của bạn
 .\mosquitto.exe -v
 ```
 
-Nếu broker chạy thành công, cửa sổ sẽ hiển thị log lắng nghe cổng mặc định `1883`.
+✅ Nếu thấy log `listening on port 1883` → **Thành công**
 
-### Bước 5: Test publish/subscribe
+**Test MQTT (3 cửa sổ PowerShell):**
 
-Mở thêm một cửa sổ PowerShell:
-
-```powershell
-cd "D:\Mosquitto"
+Terminal 1 - Subscribe:
+```bash
 .\mosquitto_sub.exe -h localhost -t test/topic -v
 ```
 
-Mở thêm một cửa sổ khác:
-
-```powershell
-cd "D:\Mosquitto"
+Terminal 2 - Publish:
+```bash
 .\mosquitto_pub.exe -h localhost -t test/topic -m "hello mqtt"
 ```
 
-Nếu cửa sổ `mosquitto_sub` hiện ra nội dung `hello mqtt` thì Mosquitto đã hoạt động đúng.
+✅ Nếu Terminal 1 nhận được message → **MQTT hoạt động**
 
 ---
 
-## 6.3. Cài PostgreSQL và pgAdmin
+### 3️⃣ Install PostgreSQL & pgAdmin 4
 
-### Bước 1: Tải PostgreSQL
+**Download:** https://www.postgresql.org/download/
 
-Tải bản PostgreSQL cho Windows x64.
+**Trong lúc cài:**
+- ✅ Chọn **PostgreSQL Server**
+- ✅ Chọn **pgAdmin 4**
+- ✅ Chọn **Command Line Tools**
+- Default port: `5432`
+- **🔐 Ghi nhớ mật khẩu user `postgres`** ← QUAN TRỌNG!
 
-### Bước 2: Chạy cài đặt
-
-Trong quá trình cài, nên giữ cấu hình như sau:
-
-* chọn **PostgreSQL Server**
-* chọn **pgAdmin 4**
-* chọn **Command Line Tools**
-* port: `5432`
-* locale: mặc định
-* ghi nhớ mật khẩu của user `postgres`
-
-### Bước 3: Mở pgAdmin
-
-Sau khi cài xong, mở **pgAdmin 4** và kết nối vào PostgreSQL bằng mật khẩu đã đặt.
+**Mở pgAdmin:**
+- Sau cài xong, truy cập: [http://localhost:5050](http://localhost:5050)
+- Đăng nhập bằng mật khẩu PostgreSQL
 
 ---
 
-# 7. Tạo database và bảng
+### 4️⃣ Get OpenWeather API Key
 
-## 7.1. Tạo database `iot_demo`
-
-Trong pgAdmin:
-
-* chuột phải vào **Databases**
-* chọn **Create**
-* chọn **Database...**
-* nhập tên database:
-
-```text
-iot_demo
-```
-
-* nhấn **Save**
+1. Truy cập: https://openweathermap.org/api
+2. Click **Sign Up** → tạo tài khoản
+3. Xác nhận email
+4. Vào **API keys** tab → copy key mặc định
+5. Lưu lại (sẽ dùng ở file `config.py`)
 
 ---
 
-## 7.2. Tạo bảng `weather_data`
+### 5️⃣ ThingsBoard Setup
 
-Mở **Query Tool** của database `iot_demo` và chạy câu lệnh sau:
+**Option A: Dùng Cloud Demo**
+- Truy cập: https://demo.thingsboard.io
+- Đăng nhập (hoặc tạo tài khoản)
+- **Devices** → **Add new device** → tạo device
+- Mở device → **Credentials** → copy **Access Token**
 
-```sql
-CREATE TABLE weather_data (
-    id SERIAL PRIMARY KEY,
-    device_id VARCHAR(100),
-    city VARCHAR(100),
-    temperature REAL,
-    humidity REAL,
-    pressure REAL,
-    wind_speed REAL,
-    recorded_at TIMESTAMP,
-    weather VARCHAR(200)
-);
-```
-
-### Kiểm tra bảng
-
-Chạy tiếp:
-
-```sql
-SELECT * FROM weather_data;
-```
-
-Nếu không báo lỗi thì bảng đã được tạo thành công.
+**Option B: Local Instance**
+- Follow hướng dẫn: https://thingsboard.io/docs/installation/
 
 ---
 
-# 8. Tạo thiết bị trên ThingsBoard
+## ⚙️ Configuration
 
-## 8.1. Đăng nhập ThingsBoard
+### Tạo `config.py`
 
-Đăng nhập vào ThingsBoard mà bạn sử dụng.
-
-## 8.2. Tạo thiết bị mới
-
-Trong menu **Devices**:
-
-* chọn **Add new device**
-* nhập tên thiết bị, ví dụ:
-
-```text
-iot_demo_K68
-```
-
-* bấm **Add**
-
-## 8.3. Lấy Access Token
-
-Mở thiết bị vừa tạo và tìm phần **Credentials**.
-
-Sao chép:
-
-* **Access Token**
-
-Lưu ý rất quan trọng:
-
-* khi gửi dữ liệu lên ThingsBoard bằng MQTT, phải dùng **Access Token**
-* **không dùng Device ID**
-
----
-
-# 9. Tạo file cấu hình `config.py`
-
-Tạo file `config.py` trong thư mục project với nội dung như sau:
+Tạo file **`config.py`** tại root thư mục project với nội dung:
 
 ```python
-OPENWEATHER_API_KEY = "YOUR_OPENWEATHER_API_KEY"
+# ============ OpenWeather ============
+OPENWEATHER_API_KEY = "YOUR_OPENWEATHER_API_KEY"  # Lấy từ openweathermap.org
 CITY = "Hanoi"
 
+# ============ Mosquitto MQTT Broker ============
 MOSQUITTO_BROKER = "localhost"
 MOSQUITTO_PORT = 1883
 MOSQUITTO_TOPIC = "iot/weather/hanoi"
 
+# ============ PostgreSQL ============
 PG_HOST = "localhost"
 PG_PORT = 5432
 PG_DATABASE = "iot_demo"
 PG_USER = "postgres"
-PG_PASSWORD = "YOUR_POSTGRES_PASSWORD"
+PG_PASSWORD = "YOUR_POSTGRES_PASSWORD"  # Mật khẩu đã set khi cài PostgreSQL
 
-THINGSBOARD_HOST = "demo.thingsboard.io"
+# ============ ThingsBoard ============
+THINGSBOARD_HOST = "demo.thingsboard.io"  # Hoặc IP local instance
 THINGSBOARD_PORT = 1883
-THINGSBOARD_ACCESS_TOKEN = "YOUR_THINGSBOARD_ACCESS_TOKEN"
+THINGSBOARD_ACCESS_TOKEN = "YOUR_THINGSBOARD_ACCESS_TOKEN"  # Copy từ ThingsBoard device credentials
 THINGSBOARD_TOPIC = "v1/devices/me/telemetry"
 ```
 
-### Giải thích
+### Cấu hình Chi tiết
 
-* `OPENWEATHER_API_KEY`: API key lấy từ OpenWeather
-* `CITY`: thành phố cần lấy dữ liệu
-* `MOSQUITTO_*`: cấu hình broker MQTT
-* `PG_*`: cấu hình PostgreSQL
-* `THINGSBOARD_*`: cấu hình kết nối ThingsBoard
+| Biến | Nguồn | Mô tả |
+|------|-------|-------|
+| `OPENWEATHER_API_KEY` | [openweathermap.org](https://openweathermap.org/api) | API key để gọi OpenWeather |
+| `CITY` | Tùy chọn | Thành phố cần lấy dữ liệu thời tiết |
+| `MOSQUITTO_BROKER` | Cài đặt | Host MQTT broker (localhost nếu cài local) |
+| `MOSQUITTO_PORT` | Cài đặt | Port MQTT (mặc định 1883) |
+| `PG_PASSWORD` | Cài đặt PostgreSQL | Password của user `postgres` |
+| `THINGSBOARD_ACCESS_TOKEN` | [demo.thingsboard.io](https://demo.thingsboard.io) | Token của device trên ThingsBoard |
 
 ---
 
-# 10. Cài thư viện Python
+### Install Python Dependencies
 
-Mở terminal tại thư mục project và chạy:
+Mở terminal tại thư mục project:**
+
+```bash
+pip install -r requirements.txt
+```
+
+Hoặc cài từng package:
 
 ```bash
 pip install requests paho-mqtt psycopg2-binary
@@ -338,180 +309,191 @@ pip install requests paho-mqtt psycopg2-binary
 
 ---
 
-# 11. Test OpenWeather API
+## 🚀 Quick Start
 
-Tạo file `test_openweather.py` với nội dung:
+Hướng dẫn nhanh để chạy project (giả sử tất cả đã cài và cấu hình):
 
-```python
-import requests
-
-API_KEY = "YOUR_OPENWEATHER_API_KEY"
-CITY = "Hanoi"
-
-url = "https://api.openweathermap.org/data/2.5/weather"
-params = {
-    "q": CITY,
-    "appid": API_KEY,
-    "units": "metric"
-}
-
-response = requests.get(url, params=params, timeout=10)
-print("Status code:", response.status_code)
-print(response.text)
+**1. Chắc chắn Mosquitto đang chạy:**
+```bash
+# PowerShell
+cd "C:\Program Files\mosquitto"
+.\mosquitto.exe -v
 ```
 
-Chạy:
+**2. Test OpenWeather API:**
+```bash
+python test_openweather.py
+# Output: Status code: 200
+```
+
+**3. Run Publisher (Thu thập dữ liệu):**
+```bash
+python publisher.py
+# [PUBLISHER] Published to iot/weather/hanoi: {...}
+```
+
+**4. Run Subscriber (Xử lý & lưu dữ liệu) - Terminal khác:**
+```bash
+python subscriber.py
+# [SUBSCRIBER] Received: {...}
+# [SUBSCRIBER] Saved to PostgreSQL
+# [SUBSCRIBER] Sent to ThingsBoard
+```
+
+**5. Kiểm tra dữ liệu:**
+- pgAdmin: [http://localhost:5050](http://localhost:5050) → Query `SELECT * FROM weather_data`
+- ThingsBoard: [https://demo.thingsboard.io](https://demo.thingsboard.io) → Device → Latest Telemetry
+
+---
+
+## 📖 Running the Project
+
+### Các bước chi tiết
+
+**1. Database & Mosquitto:**
+- Đảm bảo PostgreSQL chạy (Windows Service hoặc chạy thủ công)
+- Đảm bảo Mosquitto chạy
+
+**2. Terminal 1 - Publisher:**
+```bash
+cd <your_project_folder>
+python publisher.py
+```
+
+**3. Terminal 2 - Subscriber:**
+```bash
+cd <your_project_folder>
+python subscriber.py
+```
+
+**Kết quả:**
+- Publisher: Gọi OpenWeather API mỗi 30 giây → publish lên Mosquitto
+- Subscriber: Nhận từ Mosquitto → lưu PostgreSQL → gửi ThingsBoard
+- Data sẽ hiện trên pgAdmin & ThingsBoard
+
+---
+
+## 🔧 Troubleshooting
+
+### ❌ `[PUBLISHER] Error: Failed to fetch weather data`
+**Nguyên nhân:** OpenWeather API key sai hoặc hết timeout  
+**Giải pháp:**
+- Kiểm tra API key ở `config.py`
+- Test: `python test_openweather.py`
+- Kiểm tra internet
+
+### ❌ `Connection refused` hoặc `Address already in use` (port 1883)
+**Nguyên nhân:** Mosquitto không chạy hoặc port bị chiếm  
+**Giải pháp:**
+```bash
+# Kiểm tra Mosquitto chạy hay không
+netstat -an | findstr 1883
+
+# Nếu port bị chiếm, kill process
+taskkill /PID <PID> /F
+```
+
+### ❌ `psycopg2.OperationalError: could not connect to server`
+**Nguyên nhân:** PostgreSQL không chạy hoặc mật khẩu sai  
+**Giải pháp:**
+- Kiểm tra PostgreSQL service đang chạy
+- Verify mật khẩu ở `config.py`
+- Test connect pgAdmin
+
+### ❌ `No attribute 'publis'` hoặc import error
+**Nguyên nhân:** Thư viện chưa cài  
+**Giải pháp:**
+```bash
+pip install paho-mqtt requests psycopg2-binary --upgrade
+```
+
+### ❌ Database error: `relation "weather_data" does not exist`
+**Nguyên nhân:** Table chưa được tạo  
+**Giải pháp:**
+- Mở pgAdmin → database `iot_demo` → Query Tool
+- Copy & run SQL tạo table (xem phần Configuration)
+
+---
+
+## 📚 References
+
+- [MQTT Protocol](https://mqtt.org/)
+- [Mosquitto Documentation](https://mosquitto.org/documentation/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [ThingsBoard Documentation](https://thingsboard.io/docs/)
+- [OpenWeather API Docs](https://openweathermap.org/api)
+- [Paho MQTT Python](https://github.com/eclipse/paho.mqtt.python)
+
+---
+
+## 📄 File Details
+
+### `publisher.py`
+Thu thập dữ liệu từ OpenWeather API và publish lên MQTT Broker
+
+**Chức năng:**
+- Gọi OpenWeather API mỗi 30 giây
+- Lấy dữ liệu: nhiệt độ, độ ẩm, áp suất, tốc độ gió
+- Publish JSON message lên MQTT topic
+
+**Chạy:**
+```bash
+python publisher.py
+```
+
+### `subscriber.py`
+Subscribe dữ liệu từ MQTT, lưu vào PostgreSQL và ThingsBoard
+
+**Chức năng:**
+- Subscribe từ Mosquitto topic
+- Nhận JSON message
+- Lưu dữ liệu vào PostgreSQL table
+- Forward dữ liệu tới ThingsBoard
+
+**Chạy:**
+```bash
+python subscriber.py
+```
+
+### `test_openweather.py`
+Test kết nối và lấy dữ liệu từ OpenWeather API
 
 ```bash
 python test_openweather.py
 ```
 
-Nếu kết quả là `Status code: 200` thì API hoạt động đúng.
+### `test_thingsboard.py`
+Test gửi dữ liệu trực tiếp tới ThingsBoard
 
----
-
-# 12. File `publisher.py`
-
-File này có nhiệm vụ:
-
-* gọi OpenWeather API
-* lấy dữ liệu thời tiết
-* publish dữ liệu lên Mosquitto
-
-```python
-import json
-import time
-import requests
-import paho.mqtt.client as mqtt
-from config import (
-    OPENWEATHER_API_KEY,
-    CITY,
-    MOSQUITTO_BROKER,
-    MOSQUITTO_PORT,
-    MOSQUITTO_TOPIC,
-)
-
-def get_weather_data():
-    url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": CITY,
-        "appid": OPENWEATHER_API_KEY,
-        "units": "metric"
-    }
-
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    data = response.json()
-
-    payload = {
-        "device_id": "openweather-simulator-01",
-        "city": data["name"],
-        "temperature": data["main"]["temp"],
-        "humidity": data["main"]["humidity"],
-        "pressure": data["main"]["pressure"],
-        "wind_speed": data["wind"]["speed"],
-        "weather": data["weather"][0]["description"],
-        "recorded_at": time.strftime("%Y-%m-%d %H:%M:%S")
-    }
-    return payload
-
-def main():
-    client = mqtt.Client()
-    client.connect(MOSQUITTO_BROKER, MOSQUITTO_PORT, 60)
-
-    while True:
-        try:
-            payload = get_weather_data()
-            message = json.dumps(payload, ensure_ascii=False)
-            client.publish(MOSQUITTO_TOPIC, message)
-            print(f"[PUBLISHER] Published to {MOSQUITTO_TOPIC}: {message}")
-        except Exception as e:
-            print(f"[PUBLISHER] Error: {e}")
-
-        time.sleep(30)
-
-if __name__ == "__main__":
-    main()
+```bash
+python test_thingsboard.py
 ```
 
 ---
 
-# 13. File `subscriber.py`
+## 🎓 Tips for Learning
 
-File này có nhiệm vụ:
+- 💡 **Hiểu data flow:** Trace dữ liệu từ API → Mosquitto → PostgreSQL → ThingsBoard
+- 🔍 **Debug từng component:** Test từng phần riêng rẽ trước khi chạy toàn bộ
+- 📊 **Monitor dữ liệu:** Dùng pgAdmin và ThingsBoard để xem real-time data
+- 🛠️ **Modify & Experiment:** Thay đổi topic, frequency, fields để hiểu hệ thống
+- 📚 **Read Documentation:** Tham khảo docs của từng công nghệ
 
-* subscribe dữ liệu từ Mosquitto
-* lưu dữ liệu vào PostgreSQL
-* gửi telemetry sang ThingsBoard
+---
 
-```python
-import json
-import paho.mqtt.client as mqtt
-import psycopg2
-from config import (
-    MOSQUITTO_BROKER,
-    MOSQUITTO_PORT,
-    MOSQUITTO_TOPIC,
-    PG_HOST,
-    PG_PORT,
-    PG_DATABASE,
-    PG_USER,
-    PG_PASSWORD,
-    THINGSBOARD_HOST,
-    THINGSBOARD_PORT,
-    THINGSBOARD_ACCESS_TOKEN,
-    THINGSBOARD_TOPIC,
-)
+## 📞 Support
 
-def get_pg_connection():
-    return psycopg2.connect(
-        host=PG_HOST,
-        port=PG_PORT,
-        database=PG_DATABASE,
-        user=PG_USER,
-        password=PG_PASSWORD
-    )
+Gặp vấn đề? Kiểm tra:
+1. ✅ Tất cả services đang chạy (Mosquitto, PostgreSQL)
+2. ✅ Credentials đúng (API keys, passwords)
+3. ✅ Network connection
+4. ✅ Ports không bị block (1883, 5432)
+5. ✅ Troubleshooting section ở trên
 
-def save_to_postgresql(data):
-    conn = None
-    cur = None
-    try:
-        conn = get_pg_connection()
-        cur = conn.cursor()
+---
 
-        sql = """
-        INSERT INTO weather_data
-        (device_id, city, temperature, humidity, pressure, wind_speed, weather, recorded_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-
-        cur.execute(sql, (
-            data.get("device_id"),
-            data.get("city"),
-            data.get("temperature"),
-            data.get("humidity"),
-            data.get("pressure"),
-            data.get("wind_speed"),
-            data.get("weather"),
-            data.get("recorded_at")
-        ))
-
-        conn.commit()
-        print("[SUBSCRIBER] Saved to PostgreSQL")
-
-    except Exception as e:
-        print(f"[SUBSCRIBER] PostgreSQL error: {e}")
-
-    finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
-
-def forward_to_thingsboard(data):
-    if not THINGSBOARD_ACCESS_TOKEN:
-        print("[SUBSCRIBER] Skip ThingsBoard: chưa cấu hình token")
-        return
+**Last Update:** April 2026  
+**Status:** Active & Maintained
 
     tb_client = None
     try:
